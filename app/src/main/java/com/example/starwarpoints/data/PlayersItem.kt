@@ -9,5 +9,6 @@ data class PlayersItem(
     @SerializedName("id")
     val id: Int,
     @SerializedName("name")
-    val name: String
+    val name: String,
+    var totalMatchPlayed: Int
 )

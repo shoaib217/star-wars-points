@@ -6,20 +6,32 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarDuration
@@ -30,6 +42,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -40,18 +53,20 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.navigation.NavType
+import androidx.navigation.NavController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import androidx.navigation.navArgument
 import coil.compose.SubcomposeAsyncImage
 import com.example.starwarpoints.MainActivity.Companion.TAG
+import com.example.starwarpoints.data.MatchListItem
 import com.example.starwarpoints.data.Players
 import com.example.starwarpoints.data.PlayersItem
 import com.example.starwarpoints.ui.theme.StarWarPointsTheme
@@ -71,11 +86,34 @@ class MainActivity : ComponentActivity() {
                 var toolbarName by remember {
                     mutableStateOf(getString(R.string.star_wars_blaster_tournament))
                 }
+                var canPop by remember { mutableStateOf(false) }
+
+                DisposableEffect(navController) {
+                    val listener = NavController.OnDestinationChangedListener { controller, _, _ ->
+                        canPop = controller.previousBackStackEntry != null
+                    }
+                    navController.addOnDestinationChangedListener(listener)
+                    onDispose {
+                        navController.removeOnDestinationChangedListener(listener)
+                    }
+                }
+
+                val navigationIcon: (@Composable () -> Unit)? =
+                    if (canPop) {
+                        {
+                            IconButton(onClick = { navController.popBackStack() }) {
+                                Icon(imageVector = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null)
+                            }
+                        }
+                    } else {
+                        null
+                    }
                 Scaffold(modifier = Modifier.fillMaxSize(),
                     snackbarHost = {
                         SnackbarHost(hostState = snackBarHostState)
                     }, topBar = {
                         TopAppBar(
+                            navigationIcon = navigationIcon ?: {},
                             title = { Text(text = toolbarName) },
                             colors = TopAppBarDefaults.smallTopAppBarColors(
                                 containerColor = MaterialTheme.colorScheme.primaryContainer,
@@ -165,7 +203,7 @@ fun PlayerList(modifier: Modifier, mainViewModel: MainViewModel,onCardClick: (Pl
 }
 
 @Composable
-fun ShowPlayerList(players: Players, modifier: Modifier,onCardClick: (PlayersItem) -> Unit) {
+fun ShowPlayerList(players: List<PlayersItem>, modifier: Modifier,onCardClick: (PlayersItem) -> Unit) {
     print("players: ${players.size}")
     print("players: ${players}")
     Column(
@@ -241,7 +279,89 @@ fun PlayerCard(player: PlayersItem,onCardClick: (PlayersItem) -> Unit) {
 
 
 @Composable
+fun MatchCard(match: MatchListItem, mainViewModel: MainViewModel) {
+    Card(
+        colors = CardDefaults.cardColors()
+            .copy(containerColor = mainViewModel.getMatchCardColor(match)),
+        shape = RectangleShape,
+        modifier = Modifier
+            .fillMaxSize()
+    ) {
+        Row(
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(start = 4.dp, end = 4.dp)
+                .heightIn(min = 100.dp)
+            
+        ) {
+            Text(
+                text = match.player1.playerName,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.W700,
+                modifier = Modifier.fillMaxSize(0.25f),
+                color = Color.Black
+            )
+            Row(
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxSize(0.25f)
+            ) {
+                Text(
+                    text = match.player1.score.toString(),
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.W700,
+                    color = Color.Black
+                )
+                Text(
+                    text = " - ",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.W700,
+                    color = Color.Black
+                )
+                Text(
+                    text = match.player2.score.toString(),
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.W700,
+                    color = Color.Black
+                )
+
+            }
+            Text(
+                text = match.player2.playerName,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.W700,
+                modifier = Modifier.fillMaxSize(0.5f),
+                color = Color.Black
+            )
+
+        }
+
+    }
+}
+
+@Composable
 fun MatchListScreen(modifier: Modifier, mainViewModel: MainViewModel) {
 
-
+    Column(
+        modifier = modifier,
+        horizontalAlignment = Alignment.Start,
+        verticalArrangement = Arrangement.Top
+    ) {
+        Text(
+            text = stringResource(R.string.matches),
+            fontWeight = FontWeight.Bold,
+            fontSize = 18.sp,
+            modifier = Modifier.padding(12.dp)
+        )
+        mainViewModel.getMatchPlayedList()?.let { matchs ->
+            LazyColumn(modifier = Modifier.padding(start = 8.dp, end = 8.dp, bottom = 8.dp)) {
+                items(matchs) { match ->
+                    MatchCard(match,mainViewModel)
+                    HorizontalDivider(modifier = Modifier.padding(start = 16.dp, end = 14.dp))
+                }
+            }
+        }
+    }
 }

@@ -294,7 +294,7 @@ fun MatchCard(match: MatchListItem, mainViewModel: MainViewModel) {
                 .fillMaxSize()
                 .padding(start = 4.dp, end = 4.dp)
                 .heightIn(min = 100.dp)
-            
+
         ) {
             Text(
                 text = match.player1.playerName,

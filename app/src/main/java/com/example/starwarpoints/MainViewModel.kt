@@ -16,11 +16,12 @@ import kotlinx.coroutines.launch
 
 class MainViewModel : ViewModel() {
 
-    var players: Players? = null
-    var matchList: ArrayList<MatchListItem>? = null
+    private var players: Players? = null
+    private var matchList: ArrayList<MatchListItem>? = null
     private var _playerScreenUiState = MutableStateFlow<UiState<List<PlayersItem>>>(UiState.Loading)
     val playerScreenUiState: StateFlow<UiState<List<PlayersItem>>> = _playerScreenUiState
     lateinit var selectedPlayersItem: PlayersItem
+
     init {
         viewModelScope.launch {
             getData()
@@ -28,42 +29,56 @@ class MainViewModel : ViewModel() {
     }
 
     private suspend fun getData() {
-        val apiService = APIService.getInstance()
-        val playerResponse = apiService.getPlayers()
-        val matchListResponse = apiService.getMatchList()
-        if (playerResponse.isSuccessful){
-            playerResponse.body()?.let {
-                players = it
+        try {
+
+            val apiService = APIService.getInstance()
+            val playerResponse = apiService.getPlayers()
+            val matchListResponse = apiService.getMatchList()
+            if (playerResponse.isSuccessful) {
+                playerResponse.body()?.let {
+                    players = it
+                }
+            } else {
+                _playerScreenUiState.update {
+                    UiState.Error(playerResponse.message())
+                }
             }
-        } else {
+
+            if (matchListResponse.isSuccessful) {
+                matchListResponse.body()?.let {
+                    matchList = it
+                }
+            }
+
+            players?.let { playersData ->
+                playersData.forEach { player ->
+                    player.totalMatchPlayed =
+                        matchList?.filter { player.id == it.player1.id || player.id == it.player2.id }?.size
+                            ?: 0
+                }
+                matchList?.forEach { match ->
+                    match.player1.playerName =
+                        playersData.firstOrNull { player -> player.id == match.player1.id }?.name
+                            ?: ""
+                    match.player2.playerName =
+                        playersData.firstOrNull { player -> player.id == match.player2.id }?.name
+                            ?: ""
+                }
+                playersData.sortByDescending { it.totalMatchPlayed }
+                _playerScreenUiState.update {
+                    UiState.Success(playersData)
+                }
+            }
+            setDummyData()
+
+            Log.d("TAG", "getData players: $players")
+            Log.d("TAG", "matchList : $matchList")
+        } catch (e: Exception) {
+            e.printStackTrace()
             _playerScreenUiState.update {
-                UiState.Error(playerResponse.message())
+                UiState.Error(message = e.message ?: "something went wrong")
             }
         }
-
-        if (matchListResponse.isSuccessful) {
-            matchListResponse.body()?.let {
-                matchList = it
-            }
-        }
-
-        players?.let { playersData ->
-            playersData.forEach { player->
-                player.totalMatchPlayed = matchList?.filter { player.id == it.player1.id || player.id == it.player2.id}?.size ?: 0
-            }
-            matchList?.forEach { match->
-                match.player1.playerName = playersData.firstOrNull {player-> player.id == match.player1.id }?.name ?: ""
-                match.player2.playerName = playersData.firstOrNull {player-> player.id == match.player2.id }?.name ?: ""
-            }
-            playersData.sortByDescending { it.totalMatchPlayed }
-            _playerScreenUiState.update {
-                UiState.Success(playersData)
-            }
-        }
-        setDummyData()
-
-        Log.d("TAG", "getData players: $players")
-        Log.d("TAG", "matchList : $matchList")
 
 
     }
@@ -75,7 +90,7 @@ class MainViewModel : ViewModel() {
                 "http://icons.iconarchive.com/icons/creativeflip/starwars-longshadow-flat/128/Boba-Fett-icon.png",
                 1,
                 "Boba Fett",
-                matchList?.filter { 1 == it.player1.id || 1 == it.player2.id}?.size ?: 0
+                matchList?.filter { 1 == it.player1.id || 1 == it.player2.id }?.size ?: 0
             )
         )
         players.add(
@@ -83,7 +98,7 @@ class MainViewModel : ViewModel() {
                 "http://icons.iconarchive.com/icons/creativeflip/starwars-longshadow-flat/128/C3PO-icon.png",
                 2,
                 "C3PO",
-                matchList?.filter { 2 == it.player1.id || 2 == it.player2.id}?.size ?: 0
+                matchList?.filter { 2 == it.player1.id || 2 == it.player2.id }?.size ?: 0
             )
         )
         players.add(
@@ -91,7 +106,7 @@ class MainViewModel : ViewModel() {
                 "http://icons.iconarchive.com/icons/creativeflip/starwars-longshadow-flat/128/Chewbacca-icon.png",
                 3,
                 "Chewbacca",
-                matchList?.filter { 3 == it.player1.id || 3 == it.player2.id}?.size ?: 0
+                matchList?.filter { 3 == it.player1.id || 3 == it.player2.id }?.size ?: 0
             )
         )
         players.add(
@@ -99,7 +114,7 @@ class MainViewModel : ViewModel() {
                 "http://icons.iconarchive.com/icons/creativeflip/starwars-longshadow-flat/128/Darth-Vader-icon.png",
                 4,
                 "Darth Vader",
-                matchList?.filter { 4 == it.player1.id || 4 == it.player2.id}?.size ?: 0
+                matchList?.filter { 4 == it.player1.id || 4 == it.player2.id }?.size ?: 0
             )
         )
         players.add(
@@ -107,7 +122,7 @@ class MainViewModel : ViewModel() {
                 "http://icons.iconarchive.com/icons/creativeflip/starwars-longshadow-flat/128/Emperor-icon.png",
                 5,
                 "Emperor",
-                (matchList?.filter { 5 == it.player1.id || 5 == it.player2.id}?.size ?: 0) + 5
+                matchList?.filter { 5 == it.player1.id || 5 == it.player2.id }?.size ?: 0
             )
         )
         players.add(
@@ -115,7 +130,7 @@ class MainViewModel : ViewModel() {
                 "http://icons.iconarchive.com/icons/creativeflip/starwars-longshadow-flat/128/Han-Solo-icon.png",
                 6,
                 "Han Solo",
-                matchList?.filter { 6 == it.player1.id || 6 == it.player2.id}?.size ?: 0
+                matchList?.filter { 6 == it.player1.id || 6 == it.player2.id }?.size ?: 0
             )
         )
         players.add(
@@ -123,7 +138,7 @@ class MainViewModel : ViewModel() {
                 "http://icons.iconarchive.com/icons/creativeflip/starwars-longshadow-flat/128/Leia-icon.png",
                 7,
                 "Princess Leia",
-                matchList?.filter { 7 == it.player1.id || 7 == it.player2.id}?.size ?: 0
+                matchList?.filter { 7 == it.player1.id || 7 == it.player2.id }?.size ?: 0
             )
         )
         players.add(
@@ -131,7 +146,7 @@ class MainViewModel : ViewModel() {
                 "http://icons.iconarchive.com/icons/creativeflip/starwars-longshadow-flat/128/Luke-Skywalker-icon.png",
                 8,
                 "Luke Skywalker",
-                matchList?.filter { 8 == it.player1.id || 8 == it.player2.id}?.size ?: 0
+                matchList?.filter { 8 == it.player1.id || 8 == it.player2.id }?.size ?: 0
             )
         )
         players.add(
@@ -139,7 +154,7 @@ class MainViewModel : ViewModel() {
                 "http://icons.iconarchive.com/icons/creativeflip/starwars-longshadow-flat/128/Obi-Wan-icon.png",
                 9,
                 "Obi Wan Kenobi",
-                matchList?.filter { 9 == it.player1.id || 9 == it.player2.id}?.size ?: 0
+                matchList?.filter { 9 == it.player1.id || 9 == it.player2.id }?.size ?: 0
             )
         )
         players.add(
@@ -147,7 +162,7 @@ class MainViewModel : ViewModel() {
                 "http://icons.iconarchive.com/icons/creativeflip/starwars-longshadow-flat/128/R2D2-icon.png",
                 10,
                 "R2D2",
-                matchList?.filter { 10 == it.player1.id || 10 == it.player2.id}?.size ?: 0
+                matchList?.filter { 10 == it.player1.id || 10 == it.player2.id }?.size ?: 0
             )
         )
         players.add(
@@ -155,7 +170,7 @@ class MainViewModel : ViewModel() {
                 "http://icons.iconarchive.com/icons/creativeflip/starwars-longshadow-flat/128/Stormtrooper-icon.png",
                 11,
                 "Stormtrooper",
-                matchList?.filter { 11 == it.player1.id || 11 == it.player2.id}?.size ?: 0
+                matchList?.filter { 11 == it.player1.id || 11 == it.player2.id }?.size ?: 0
             )
         )
         players.add(
@@ -163,13 +178,15 @@ class MainViewModel : ViewModel() {
                 "http://icons.iconarchive.com/icons/creativeflip/starwars-longshadow-flat/128/Yoda-icon.png",
                 12,
                 "Yoda",
-                matchList?.filter { 12 == it.player1.id || 12 == it.player2.id}?.size ?: 0
+                matchList?.filter { 12 == it.player1.id || 12 == it.player2.id }?.size ?: 0
             )
         )
 
-        matchList?.forEach { match->
-            match.player1.playerName = players.firstOrNull {player-> player.id == match.player1.id }?.name ?: ""
-            match.player2.playerName = players.firstOrNull {player-> player.id == match.player2.id }?.name ?: ""
+        matchList?.forEach { match ->
+            match.player1.playerName =
+                players.firstOrNull { player -> player.id == match.player1.id }?.name ?: ""
+            match.player2.playerName =
+                players.firstOrNull { player -> player.id == match.player2.id }?.name ?: ""
         }
 
         players.sortByDescending { it.totalMatchPlayed }
@@ -178,15 +195,21 @@ class MainViewModel : ViewModel() {
         }
     }
 
+    /**
+     * Filters the list of matches to find those played by the currently selected player.
+     *
+     * @return A list of [MatchListItem] objects representing matches played by the selected player,
+     *         or null if the match list is not available.
+     */
     fun getMatchPlayedList(): List<MatchListItem>? {
-        return matchList?.filter { selectedPlayersItem.id == it.player1.id ||  selectedPlayersItem.id == it.player2.id}
+        return matchList?.filter { selectedPlayersItem.id == it.player1.id || selectedPlayersItem.id == it.player2.id }
     }
 
     fun getMatchCardColor(match: MatchListItem): Color {
-        return if (selectedPlayersItem.id == match.player1.id){
-            getColor(match.player1,match.player2)
+        return if (selectedPlayersItem.id == match.player1.id) {
+            getColor(match.player1, match.player2)
         } else {
-            getColor(match.player2,match.player1)
+            getColor(match.player2, match.player1)
         }
     }
 
@@ -195,9 +218,11 @@ class MainViewModel : ViewModel() {
             player.score > opponentPlayer.score -> {
                 Color.Green
             }
+
             player.score < opponentPlayer.score -> {
                 Color.Red
             }
+
             else -> {
                 Color.White
             }
@@ -206,9 +231,9 @@ class MainViewModel : ViewModel() {
 }
 
 sealed class UiState<out T> {
-    data object Loading: UiState<Nothing>()
+    data object Loading : UiState<Nothing>()
 
     class Error(val message: String) : UiState<Nothing>()
 
-    class Success <T>(val data: T) : UiState<T>()
+    class Success<T>(val data: T) : UiState<T>()
 }

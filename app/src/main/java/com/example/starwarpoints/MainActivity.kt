@@ -6,16 +6,12 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -24,7 +20,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -67,7 +62,6 @@ import androidx.navigation.compose.rememberNavController
 import coil.compose.SubcomposeAsyncImage
 import com.example.starwarpoints.MainActivity.Companion.TAG
 import com.example.starwarpoints.data.MatchListItem
-import com.example.starwarpoints.data.Players
 import com.example.starwarpoints.data.PlayersItem
 import com.example.starwarpoints.ui.theme.StarWarPointsTheme
 import kotlinx.coroutines.launch
@@ -88,6 +82,8 @@ class MainActivity : ComponentActivity() {
                 }
                 var canPop by remember { mutableStateOf(false) }
 
+                val playerScreenUiState by mainViewModel.playerScreenUiState.collectAsState(initial = UiState.Loading)
+
                 DisposableEffect(navController) {
                     val listener = NavController.OnDestinationChangedListener { controller, _, _ ->
                         canPop = controller.previousBackStackEntry != null
@@ -102,7 +98,10 @@ class MainActivity : ComponentActivity() {
                     if (canPop) {
                         {
                             IconButton(onClick = { navController.popBackStack() }) {
-                                Icon(imageVector = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null)
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                    contentDescription = null
+                                )
                             }
                         }
                     } else {
@@ -124,10 +123,13 @@ class MainActivity : ComponentActivity() {
                     NavHost(navController = navController, startDestination = PLAYERS_SCREEN) {
                         composable(PLAYERS_SCREEN) {
                             toolbarName = getString(R.string.star_wars_blaster_tournament)
-                            PlayerList(modifier = Modifier.padding(innerPadding), mainViewModel, onCardClick = {
-                                mainViewModel.selectedPlayersItem = it
-                                navController.navigate(MATCH_SCREEN)
-                            })
+                            PlayerList(
+                                modifier = Modifier.padding(innerPadding),
+                                playerScreenUiState,
+                                onCardClick = {
+                                    mainViewModel.selectedPlayersItem = it
+                                    navController.navigate(MATCH_SCREEN)
+                                })
                         }
                         composable(
                             MATCH_SCREEN,
@@ -153,7 +155,7 @@ class MainActivity : ComponentActivity() {
 
 
 @Composable
-fun MySnackBar(snackBarHostState: SnackbarHostState, message: String) {
+fun MySnackBar(snackBarHostState: SnackbarHostState = SnackbarHostState(), message: String) {
     val scope = rememberCoroutineScope()
     LaunchedEffect("key1") {
         scope.launch {
@@ -179,9 +181,12 @@ fun MySnackBar(snackBarHostState: SnackbarHostState, message: String) {
 
 
 @Composable
-fun PlayerList(modifier: Modifier, mainViewModel: MainViewModel,onCardClick: (PlayersItem) -> Unit) {
-    val uiState by mainViewModel.playerScreenUiState.collectAsState(initial = UiState.Loading)
-    when (val data = uiState) {
+fun PlayerList(
+    modifier: Modifier,
+    uiState: UiState<List<PlayersItem>>,
+    onCardClick: (PlayersItem) -> Unit,
+) {
+    when (uiState) {
         is UiState.Loading -> {
             Box(
                 contentAlignment = Alignment.Center,
@@ -192,18 +197,22 @@ fun PlayerList(modifier: Modifier, mainViewModel: MainViewModel,onCardClick: (Pl
         }
 
         is UiState.Error -> {
-            MySnackBar(snackBarHostState = SnackbarHostState(), message = data.message)
+            MySnackBar(message = uiState.message)
         }
 
         is UiState.Success -> {
-            ShowPlayerList(data.data, modifier,onCardClick)
+            ShowPlayerList(uiState.data, modifier, onCardClick)
         }
     }
 
 }
 
 @Composable
-fun ShowPlayerList(players: List<PlayersItem>, modifier: Modifier,onCardClick: (PlayersItem) -> Unit) {
+fun ShowPlayerList(
+    players: List<PlayersItem>,
+    modifier: Modifier,
+    onCardClick: (PlayersItem) -> Unit,
+) {
     print("players: ${players.size}")
     print("players: ${players}")
     Column(
@@ -219,7 +228,7 @@ fun ShowPlayerList(players: List<PlayersItem>, modifier: Modifier,onCardClick: (
         )
         LazyColumn {
             items(players) { player ->
-                PlayerCard(player,onCardClick)
+                PlayerCard(player, onCardClick)
                 HorizontalDivider(modifier = Modifier.padding(start = 16.dp, end = 14.dp))
             }
         }
@@ -227,7 +236,7 @@ fun ShowPlayerList(players: List<PlayersItem>, modifier: Modifier,onCardClick: (
 }
 
 @Composable
-fun PlayerCard(player: PlayersItem,onCardClick: (PlayersItem) -> Unit) {
+fun PlayerCard(player: PlayersItem, onCardClick: (PlayersItem) -> Unit) {
     Row(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
@@ -266,7 +275,12 @@ fun PlayerCard(player: PlayersItem,onCardClick: (PlayersItem) -> Unit) {
                     Log.d(TAG, "PlayerCard success: $it")
                 }
             )
-            Text(text = player.name, fontWeight = FontWeight.W600, fontSize = 16.sp, modifier = Modifier.fillMaxSize(0.7f))
+            Text(
+                text = player.name,
+                fontWeight = FontWeight.W600,
+                fontSize = 16.sp,
+                modifier = Modifier.fillMaxSize(0.7f)
+            )
         }
         Text(
             text = player.totalMatchPlayed.toString(),
@@ -358,7 +372,7 @@ fun MatchListScreen(modifier: Modifier, mainViewModel: MainViewModel) {
         mainViewModel.getMatchPlayedList()?.let { matchs ->
             LazyColumn(modifier = Modifier.padding(start = 8.dp, end = 8.dp, bottom = 8.dp)) {
                 items(matchs) { match ->
-                    MatchCard(match,mainViewModel)
+                    MatchCard(match, mainViewModel)
                     HorizontalDivider(modifier = Modifier.padding(start = 16.dp, end = 14.dp))
                 }
             }
